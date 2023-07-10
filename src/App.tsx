@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { io, Socket } from "socket.io-client";
 
 import socket from "./socket";
 import { v4 as uuidv4 } from "uuid";
@@ -36,12 +35,20 @@ function Game() {
     setCoinIdToGrab("");
   };
 
+  useEffect(() => {
+    const savedClientId = localStorage.getItem("clientId");
+    if (savedClientId) {
+      console.log("Client ID recovered from localStorage:", savedClientId);
+      setClientId(savedClientId);
+    } else {
+      const newClientId = uuidv4();
+      console.log("Generated client ID:", newClientId);
+      localStorage.setItem("clientId", newClientId);
+      setClientId(newClientId);
+    }
+  }, []);
 
   useEffect(() => {
-    let clientId = uuidv4();
-    console.log("Generated client ID:", clientId);
-    setClientId(clientId);
-
     socket.on("connect", () => {
       console.log("Connected to server");
       console.log("Sending authenticate event with client ID:", clientId);
@@ -49,20 +56,17 @@ function Game() {
 
       socket.on("player joined", (newPlayer) => {
         setPlayers((players) => [...players, newPlayer]);
-        setClients((clients) => [...clients, newPlayer.id]); // Asume que newPlayer.id es un identificador único de cada cliente.
+        setClients((clients) => [...clients, newPlayer.id]);
       });
 
       socket.on("authenticated", (data) => {
         console.log("Received authenticated event with data:", data);
         console.log("Authenticated:", data);
-        clientId = data.clientId;
       });
 
       socket.on("new player", (newPlayer: Player) => {
         setPlayers((players: Player[]) => [...players, newPlayer]);
       });
-
-
 
       socket.on("room created", (data) => {
         console.log(data.id, "aca");
@@ -75,11 +79,9 @@ function Game() {
         }, 1000);  // Wait for 1 second
       });
 
-
       socket.on("coins generated", (data) => {
         setCoins(data.coins);
       });
-
 
       socket.on("coin grabbed", (grabbedCoinId) => {
         setCoins((coins) => coins.filter((c) => c.id !== grabbedCoinId));
@@ -108,7 +110,6 @@ function Game() {
         setJoined(true);
       });
 
-
       return () => {
         socket.off("connect");
         socket.off("authenticated");
@@ -121,7 +122,7 @@ function Game() {
         socket.off("joined room");
       };
     });
-  }, []);
+  }, [clientId]);
 
   useEffect(() => {
     if (joined) {
@@ -153,7 +154,6 @@ function Game() {
       player: { ...position, id: clientId },
     });
   };
-
 
   return (
     <div id="canvas-container">
